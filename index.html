@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>写真色相分析| TIALA.</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f7f6f3;
+            --fg: #111;
+            --accent: #9aa7c1;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --border: rgba(0, 0, 0, 0.10);
+            --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.07);
+            --radius-card: 18px;
+            --sans: "Inter", sans-serif;
+            --serif: "Shippori Mincho", serif;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--serif);
+            background: radial-gradient(circle at top, #fdfbf5 0, #f3f1eb 40%, #ece9e2 100%);
+            color: var(--fg);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrap {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 3rem 1.4rem 4rem;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 3vw, 2.4rem);
+            margin: 1rem 0 0.5rem;
+        }
+
+        .subtitle {
+            max-width: 40rem;
+            color: #6b665d;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            margin-top: 2.4rem;
+            padding: 1.8rem;
+            border-radius: var(--radius-card);
+            background: var(--card-bg);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+        }
+
+        /* ▼ モード切り替え */
+        .mode-switch {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            font-family: var(--sans);
+            font-size: 0.8rem;
+            color: #7b746a;
+        }
+
+        .mode-label {
+            letter-spacing: 0.08em;
+        }
+
+        .mode-btn {
+            border-radius: 999px;
+            padding: 0.3rem 0.9rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            border: 1px solid rgba(0, 0, 0, 0.16);
+            background: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            font-family: var(--sans);
+            opacity: 0.7;
+            transition: background 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
+        }
+
+        .mode-btn:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        .mode-btn.active {
+            background: #ece7de;
+            opacity: 1;
+        }
+
+        .mode-note {
+            margin-top: 0.3rem;
+            font-family: var(--sans);
+            font-size: 0.75rem;
+            color: #9a9187;
+        }
+
+        .upload-block {
+            padding: 1.4rem 1rem 1.5rem;
+            text-align: center;
+            border: 2px dashed rgba(0, 0, 0, 0.15);
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: var(--sans);
+            font-size: 0.9rem;
+            color: #5c574f;
+        }
+
+        .upload-block input {
+            display: none;
+        }
+
+        /* プレビュー＋マーカー（単写真モード） */
+        .preview-wrap {
+            margin-top: 1.6rem;
+            text-align: center;
+            position: relative;
+            display: inline-block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            border-radius: 14px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07);
+            display: block;
+        }
+
+        #markerLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .color-marker {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .preview-note {
+            margin-top: 0.5rem;
+            font-family: var(--sans);
+            font-size: 0.72rem;
+            color: #9a948a;
+        }
+
+        /* ▼ グラフ切り替えタブ */
+        .graph-tabs {
+            margin-top: 2.0rem;
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            font-family: var(--sans);
+        }
+
+        .graph-tab {
+            border-radius: 999px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            background: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            opacity: 0.7;
+            transition: background 0.25s ease, opacity 0.25s ease, transform 0.2s ease;
+        }
+
+        .graph-tab:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .graph-tab.active {
+            background: #ece7de;
+            opacity: 1;
+        }
+
+        .graph-panels {
+            margin-top: 1.4rem;
+        }
+
+        .graph-panel {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .graph-panel.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .graph-title {
+            font-family: var(--sans);
+            color: #7a7468;
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 180px;
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+            background: transparent;
+        }
+
+        .graph-desc {
+            margin-top: 0.55rem;
+            font-family: var(--sans);
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: #847d73;
+        }
+
+        /* ▼ カラーパレット（単写真時メイン） */
+        .palette-wrap {
+            margin-top: 2.4rem;
+        }
+
+        .color-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 1rem;
+            margin-top: 1.4rem;
+        }
+
+        .color-box {
+            height: 110px;
+            border-radius: 14px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .color-code {
+            position: absolute;
+            bottom: 6px;
+            left: 10px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.75);
+            font-family: var(--sans);
+            font-size: 0.82rem;
+            border-radius: 999px;
+        }
+
+        .poem-block {
+            margin-top: 1.6rem;
+            padding-top: 1rem;
+            border-top: 1px dashed rgba(0, 0, 0, 0.1);
+        }
+
+        .poem-title {
+            font-family: var(--sans);
+            font-size: 0.75rem;
+            color: #978f84;
+            letter-spacing: 0.16em;
+            margin-bottom: 0.2rem;
+            text-transform: uppercase;
+        }
+
+        .poem-text {
+            font-size: 0.95rem;
+            line-height: 1.9;
+            color: #5c564e;
+        }
+
+        /* ▼ 複数写真モード：分析コメント */
+        .analysis-comment {
+            margin-top: 2.4rem;
+            padding-top: 1.4rem;
+            border-top: 1px dashed rgba(0, 0, 0, 0.12);
+        }
+
+        .analysis-title {
+            font-family: var(--sans);
+            font-size: 0.78rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #8a8278;
+            margin-bottom: 0.4rem;
+        }
+
+        .analysis-text {
+            font-family: var(--sans);
+            font-size: 0.88rem;
+            line-height: 1.9;
+            color: #4f4942;
+            white-space: pre-line;
+        }
+
+        .analysis-note {
+            margin-top: 0.3rem;
+            font-family: var(--sans);
+            font-size: 0.72rem;
+            color: #a29a90;
+        }
+
+        /* ▼ 戻るボタン */
+        .return-wrap {
+            margin-top: 2.4rem;
+            text-align: right;
+        }
+
+        .btn-return {
+            padding: 0.48rem 1.2rem;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            background: rgba(255, 255, 255, 0.9);
+            font-family: var(--sans);
+            cursor: pointer;
+            font-size: 0.82rem;
+            letter-spacing: 0.1em;
+        }
+
+        .btn-return:hover {
+            background: #f4f1eb;
+        }
+
+        .canvas-message {
+            font-family: var(--sans);
+            font-size: 0.78rem;
+            fill: #756e64;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>色の記憶パレット & 作風分析</h1>
+        <p class="subtitle">
+            単写真モードでは、一枚の写真に宿る色と光の構造を細やかに可視化します。<br>
+            <!--複数写真モードでは、最大100枚の作品から色相・明度・彩度の傾向を統計的に読み解き、
+            あなたの作風の“色の癖”を分析します。-->
+        </p>
+
+        <div class="card">
+            <!-- ▼ モード切り替え -->
+            <div class="mode-switch">
+                <span class="mode-label">MODE</span>
+                <button class="mode-btn active" data-mode="single">単写真モード</button>
+                <!-- <button class="mode-btn" data-mode="multi">複数写真モード</button>-->
+            </div>
+            <div id="modeNote" class="mode-note">
+                一枚の写真を選択して、色と光の分布を詳しく見るモードです。
+            </div>
+
+            <!-- ▼ アップロード -->
+            <label class="upload-block">
+                <input type="file" id="fileInput" accept="image/*" multiple>
+                📷 画像を選択（単写真モード：1枚 <!--/ 複数写真モード：最大100枚）-->
+            </label>
+
+            <!-- ▼ プレビュー（単写真モードのみ使用） -->
+            <div id="previewContainer" class="preview-wrap" style="display:none;">
+                <img id="previewImg" class="preview-image">
+                <div id="markerLayer"></div>
+                <div class="preview-note">※アップロードした画像はサーバーに保存されません。</div>
+            </div>
+
+            <!-- ▼ グラフ切り替えタブ -->
+            <div class="graph-tabs">
+                <button class="graph-tab active" data-graph="colorMap">Color × Brightness</button>
+                <button class="graph-tab" data-graph="hueCurve">Hue Curve</button>
+                <button class="graph-tab" data-graph="toneCurve">Tone Curve</button>
+                <button class="graph-tab" data-graph="colorBars">Color Bars</button>
+            </div>
+
+            <!-- ▼ グラフ領域 -->
+            <div class="graph-panels">
+                <!-- 1. 色×明るさヒートマップ -->
+                <div class="graph-panel active" id="panel-colorMap">
+                    <div class="graph-title">Color × Brightness Map</div>
+                    <canvas id="toneMapCanvas" class="graph-canvas"></canvas>
+                    <div class="graph-desc">
+                        横軸は青〜橙へと滑らかに移ろう「色相」、縦軸は下から上へ「暗部→ハイライト」の明るさを示します。<br>
+                        色が濃く重なっている場所ほど、その「色 × 明るさ」が写真の中に多く含まれています。
+                        左下に密度があれば“冷たい影”、右上に密度があれば“あたたかな光”が強い作品です。
+                        <!-- （※複数写真モードでは単写真での利用に限定されます）-->
+                    </div>
+                </div>
+
+                <!-- 2. Hue Curve -->
+                <div class="graph-panel" id="panel-hueCurve">
+                    <div class="graph-title">Hue Distribution Curve</div>
+                    <canvas id="hueCurveCanvas" class="graph-canvas"></canvas>
+                    <div class="graph-desc">
+                        写真（または作品群）全体の「色味の偏り」を一筆書きの曲線で表したグラフです。<br>
+                        背景の淡い帯は、左から右へ青・緑・黄・橙・赤の順に並ぶ色相の流れを示しています。<br>
+                        線が盛り上がっている区間ほど、その色相が多く使われていることを意味します。
+                    </div>
+                </div>
+
+                <!-- 3. Tone Curve -->
+                <div class="graph-panel" id="panel-toneCurve">
+                    <div class="graph-title">Brightness Curve</div>
+                    <canvas id="toneCurveCanvas" class="graph-canvas"></canvas>
+                    <div class="graph-desc">
+                        画面全体の「明るさの分布」をトーンカーブ風に描いたものです。<br>
+                        背景の帯は、左から右へ「暗部 → 中間調 → ハイライト」への流れを示しています。<br>
+                        左が高ければローキー、右が高ければハイキー、中央が高ければ中間調の比率が高い構成です。
+                    </div>
+                </div>
+
+                <!-- 4. 色分布バー -->
+                <div class="graph-panel" id="panel-colorBars">
+                    <div class="graph-title">Color Distribution Bars</div>
+                    <canvas id="colorBarCanvas" class="graph-canvas"></canvas>
+                    <div class="graph-desc">
+                        色相をいくつかの区間に分け、それぞれの色がどれだけ使われているかをバーで示したものです。<br>
+                        <!--複数写真モードでは、選択した全画像の平均傾向として、どの色域を多く使う作風なのかを俯瞰できます。-->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ▼ カラーパレット（主に単写真モード） -->
+            <div id="paletteArea"></div>
+
+            <!-- ▼ 複数写真モード専用：作風分析コメント -->
+            <div id="multiCommentBlock" class="analysis-comment" style="display:none;">
+                <div class="analysis-title">作品群の色と光の傾向</div>
+                <div id="analysisText" class="analysis-text"></div>
+                <div class="analysis-note">
+                    <!--※複数写真モードでアップロードした全画像の平均的な色相・明度・彩度の分布から、
+                    作風の特徴を統計的に要約したコメントです。-->
+                </div>
+            </div>
+        </div>
+
+        <div class="return-wrap">
+            <button class="btn-return" onclick="window.location.href='/tools/'">← TIALA Toolsへ戻る</button>
+        </div>
+    </div>
+
+    <!-- 内部処理用キャンバス（非表示）-->
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // ========= DOM参照 =========
+        const fileInput = document.getElementById("fileInput");
+        const previewImg = document.getElementById("previewImg");
+        const previewContainer = document.getElementById("previewContainer");
+        const markerLayer = document.getElementById("markerLayer");
+        const paletteArea = document.getElementById("paletteArea");
+        const modeNote = document.getElementById("modeNote");
+        const multiCommentBlock = document.getElementById("multiCommentBlock");
+        const analysisText = document.getElementById("analysisText");
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const tabs = document.querySelectorAll(".graph-tab");
+        const panels = document.querySelectorAll(".graph-panel");
+        const modeButtons = document.querySelectorAll(".mode-btn");
+
+        const toneMapCanvas = document.getElementById("toneMapCanvas");
+        const toneMapCtx = toneMapCanvas.getContext("2d");
+
+        const hueCurveCanvas = document.getElementById("hueCurveCanvas");
+        const hueCurveCtx = hueCurveCanvas.getContext("2d");
+
+        const toneCurveCanvas = document.getElementById("toneCurveCanvas");
+        const toneCurveCtx = toneCurveCanvas.getContext("2d");
+
+        const colorBarCanvas = document.getElementById("colorBarCanvas");
+        const colorBarCtx = colorBarCanvas.getContext("2d");
+
+        let mode = "single";        // "single" or "multi"
+        let currentImage = null;    // 単写真モード用
+
+        // ========= モード切り替え =========
+        modeButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                modeButtons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                mode = btn.dataset.mode;
+
+                if (mode === "single") {
+                    modeNote.textContent = "一枚の写真を選択して、色と光の分布を詳しく見るモードです。";
+                    previewContainer.style.display = currentImage ? "inline-block" : "none";
+                    multiCommentBlock.style.display = "none";
+                    paletteArea.innerHTML = "";
+                } else {
+                    modeNote.textContent = "最大100枚までの作品群から、色相・明度・彩度の傾向をまとめて分析するモードです。";
+                    previewContainer.style.display = "none";
+                    markerLayer.innerHTML = "";
+                    paletteArea.innerHTML = "";
+                    multiCommentBlock.style.display = "none";
+                }
+
+                // グラフをクリア
+                clearCanvas(toneMapCtx, toneMapCanvas);
+                clearCanvas(hueCurveCtx, hueCurveCanvas);
+                clearCanvas(toneCurveCtx, toneCurveCanvas);
+                clearCanvas(colorBarCtx, colorBarCanvas);
+            });
+        });
+
+        // ========= グラフタブ切り替え =========
+        tabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                tabs.forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+
+                const target = tab.dataset.graph;
+
+                panels.forEach(panel => {
+                    panel.classList.remove("active");
+                });
+
+                const activePanel = document.getElementById("panel-" + target);
+                activePanel.classList.add("active");
+
+                // モードに応じて再描画
+                setTimeout(() => {
+                    if (mode === "single" && currentImage) {
+                        if (target === "colorMap") drawColorBrightnessMap(currentImage);
+                        if (target === "hueCurve") drawHueCurveFromImage(currentImage);
+                        if (target === "toneCurve") drawToneCurveFromImage(currentImage);
+                        if (target === "colorBars") drawColorBarsSingle(currentImage);
+                    }
+                }, 50);
+            });
+        });
+
+        // ========= 画像入力ハンドラ =========
+        fileInput.addEventListener("change", async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+
+            if (mode === "single") {
+                const file = files[0];
+                await handleSingleImage(file);
+            } else {
+                await handleMultiImages(files.slice(0, 100));
+            }
+        });
+
+        // ========= 単写真モード処理 =========
+        async function handleSingleImage(file) {
+            const imgURL = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                currentImage = img;
+                previewImg.src = imgURL;
+                previewContainer.style.display = "inline-block";
+
+                extractPalette(img);
+                drawColorBrightnessMap(img);
+                drawHueCurveFromImage(img);
+                drawToneCurveFromImage(img);
+                drawColorBarsSingle(img);
+                multiCommentBlock.style.display = "none";
+            };
+            img.src = imgURL;
+        }
+
+        // ========= 複数写真モード処理 =========
+        async function handleMultiImages(files) {
+            currentImage = null;
+            previewContainer.style.display = "none";
+            markerLayer.innerHTML = "";
+            paletteArea.innerHTML = "";
+            multiCommentBlock.style.display = "none";
+
+            clearCanvas(toneMapCtx, toneMapCanvas);
+            clearCanvas(hueCurveCtx, hueCurveCanvas);
+            clearCanvas(toneCurveCtx, toneCurveCanvas);
+            clearCanvas(colorBarCtx, colorBarCanvas);
+
+            drawColorMapUnavailable();
+
+            // ========= 集計配列（ここが超重要！）=========
+            const hueBins = 144;
+            const brightBins = 144;
+
+            const hueHist = new Array(hueBins).fill(0);       // ← 必須
+            const brightHist = new Array(brightBins).fill(0); // ← 必須
+
+            const barBins = 24;
+            const colorBar = new Array(barBins).fill(0);
+
+
+            for (const file of files) {
+                await new Promise(resolve => {
+                    const url = URL.createObjectURL(file);
+                    const img = new Image();
+
+                    img.onload = () => {
+                        const baseW = 260;
+                        const scale = baseW / img.width;
+                        canvas.width = baseW;
+                        canvas.height = img.height * scale;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+                        // --- 1画像の平均色相用 ---
+                        let hueSum = 0;
+                        let pixelCount = 0;
+
+                        // ===================================================
+                        // ここ！！この data のループ内に 入れる！！
+                        // ===================================================
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i + 1];
+                            const b = data[i + 2];
+
+                            const { h, v } = rgbToHVS(r, g, b);
+
+                            // ------- HueCurve 用 144bins -------
+                            const hIdx = Math.floor((h / 360) * (hueBins - 1));
+                            hueHist[hIdx]++;
+
+                            // ------- ToneCurve 用 144bins -------
+                            const bIdx = Math.floor(v / 255 * (brightBins - 1));
+                            brightHist[bIdx]++;
+
+                            // ------- 画像平均色相用 -------
+                            hueSum += h;
+                            pixelCount++;
+                        }
+                        // ===================================================
+
+                        // 1枚の平均色相 → ColorBars 用
+                        const avgHue = hueSum / pixelCount;
+                        const idx = Math.floor((avgHue / 360) * barBins);
+                        colorBar[Math.min(barBins - 1, Math.max(0, idx))]++;
+
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    };
+
+                    img.src = url;
+                });
+            }
+
+
+            if (!totalPixels) return;
+
+            // 平均Hue / Tone の描画（144 bins の滑らかな一本線）
+            drawHueCurveFromHist(hueHist);
+            drawToneCurveFromHist(brightHist);
+            drawColorBarsFromHist(colorBar);
+
+            // 統計 → コメント
+            const stats = buildStatsFromHist({
+                totalPixels,
+                coolCount,
+                warmCount,
+                shadowsCount,
+                midsCount,
+                highlightsCount,
+                sumSat,
+                sumBright,
+                sumBrightSq
+            });
+
+            const comment = generateAnalysisComment(stats);
+            analysisText.textContent = comment;
+            multiCommentBlock.style.display = "block";
+        }
+
+        // ========= 共通ユーティリティ =========
+        function clearCanvas(context, canvasEl) {
+            const w = canvasEl.width = canvasEl.clientWidth || 10;
+            const h = canvasEl.height = canvasEl.clientHeight || 10;
+            context.clearRect(0, 0, w, h);
+        }
+
+        // ========= パレット抽出（単写真） =========
+        function extractPalette(img) {
+            canvas.width = 300;
+            canvas.height = (img.height / img.width) * 300;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const samples = [];
+
+            for (let i = 0; i < data.length; i += 4 * 10) {
+                samples.push([data[i], data[i + 1], data[i + 2]]);
+            }
+
+            const palette = kMeans(samples, 5);
+            const sorted = palette.sort((a, b) =>
+                ((a[0] + a[1] + a[2]) / 3) - ((b[0] + b[1] + b[2]) / 3)
+            );
+
+            renderPalette(sorted);
+            renderMarkers(sorted);
+        }
+
+        // ========== Color × Brightness Map（単写真向け） ==========
+        function drawColorBrightnessMap(img) {
+            const w = toneMapCanvas.width = toneMapCanvas.clientWidth || 10;
+            const h = toneMapCanvas.height = 180;
+
+            canvas.width = 300;
+            canvas.height = (img.height / img.width) * 300;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+            const hueBins = 72;
+            const brightBins = 64;
+            const hist = Array.from({ length: brightBins },
+                () => Array(hueBins).fill(0)
+            );
+
+            for (let i = 0; i < imgData.length; i += 4) {
+                const r = imgData[i];
+                const g = imgData[i + 1];
+                const b = imgData[i + 2];
+
+                const { h: hh, v } = rgbToHVS(r, g, b);
+                const hueIndex = Math.floor((hh / 360) * (hueBins - 1));
+                const brightIndex = Math.floor(v / 255 * (brightBins - 1));
+
+                hist[brightIndex][hueIndex]++;
+            }
+
+            let maxCount = 0;
+            for (let y = 0; y < brightBins; y++) {
+                for (let x = 0; x < hueBins; x++) {
+                    if (hist[y][x] > maxCount) maxCount = hist[y][x];
+                }
+            }
+
+            toneMapCtx.clearRect(0, 0, w, h);
+
+            // 背景グラデーション（左青→右オレンジ）
+            const bgGrad = toneMapCtx.createLinearGradient(0, 0, w, 0);
+            bgGrad.addColorStop(0, "rgba(80,120,190,0.25)");
+            bgGrad.addColorStop(0.5, "rgba(255,255,255,0.25)");
+            bgGrad.addColorStop(1, "rgba(220,150,90,0.25)");
+            toneMapCtx.fillStyle = bgGrad;
+            toneMapCtx.fillRect(0, 0, w, h);
+
+            const cellW = w / hueBins;
+            const cellH = h / brightBins;
+
+            for (let by = 0; by < brightBins; by++) {
+                for (let bx = 0; bx < hueBins; bx++) {
+                    const count = hist[by][bx];
+                    if (count === 0) continue;
+
+                    const alpha = Math.min(1, count / maxCount);
+                    const hue = bx / (hueBins - 1) * 360;
+
+                    toneMapCtx.fillStyle = `hsla(${hue}, 60%, 50%, ${alpha})`;
+
+                    const x = bx * cellW;
+                    const y = h - (by + 1) * cellH;
+                    toneMapCtx.fillRect(x, y, cellW, cellH);
+                }
+            }
+        }
+
+        // 複数モード用：ColorMap非対応の案内
+        function drawColorMapUnavailable() {
+            const w = toneMapCanvas.width = toneMapCanvas.clientWidth || 10;
+            const h = toneMapCanvas.height = 180;
+            toneMapCtx.clearRect(0, 0, w, h);
+
+            toneMapCtx.fillStyle = "rgba(245,242,236,0.95)";
+            toneMapCtx.fillRect(0, 0, w, h);
+
+            toneMapCtx.font = "12px 'Inter', system-ui";
+            toneMapCtx.fillStyle = "rgba(90,82,74,0.9)";
+            toneMapCtx.textAlign = "center";
+            toneMapCtx.textBaseline = "middle";
+            toneMapCtx.fillText("複数写真モードでは、Color × Brightness Map は単写真用となります。", w / 2, h / 2);
+        }
+
+        // ========== Hue Curve（単写真 from Image） ==========
+        // ========== Hue Curve（単写真 from Image） ==========
+        // 画像1枚から hueHist を作って、そのまま drawHueCurveFromHist に渡す版
+        function drawHueCurveFromImage(img) {
+            // 解析用に小さめにリサイズ
+            canvas.width = 260;
+            canvas.height = (img.height / img.width) * 260;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+            const bins = 144;                     // 静かな一本線用
+            const hueHist = new Array(bins).fill(0);
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                const { h } = rgbToHVS(r, g, b);
+                const idx = Math.floor((h / 360) * (bins - 1));
+                hueHist[idx]++;
+            }
+
+            // なめらか描画は共通関数に任せる
+            drawHueCurveFromHist(hueHist);
+        }
+
+        // ==============================
+        // HueCurve 背景（共通）
+        // ==============================
+        function drawHueBackground(ctx, width, height) {
+            const grad = ctx.createLinearGradient(0, 0, width, 0);
+
+            const steps = 24;
+            for (let i = 0; i <= steps; i++) {
+                const hue = (i / steps) * 360;
+                const col = `hsl(${hue}, 60%, 78%)`;
+                grad.addColorStop(i / steps, col);
+            }
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+
+            // 🔥 左の青暗がりを解消する「白の均一レイヤー」
+            ctx.fillStyle = "rgba(255,255,255,0.35)";
+            ctx.fillRect(0, 0, width, height);
+        }
+
+
+
+        // ========== Hue Curve（ヒストグラムから一本線で描画） ==========
+        function drawHueCurveFromHist(hueHist) {
+            const ctx = hueCurveCtx;
+            const w = hueCurveCanvas.width = hueCurveCanvas.clientWidth;
+            const h = hueCurveCanvas.height = 180;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 背景
+            drawHueBackground(ctx, w, h);
+
+            // ----- 平滑化（5点平均） -----
+            const smooth = new Array(hueHist.length).fill(0);
+
+            for (let i = 0; i < hueHist.length; i++) {
+                const a = hueHist[(i - 2 + hueHist.length) % hueHist.length];
+                const b = hueHist[(i - 1 + hueHist.length) % hueHist.length];
+                const c = hueHist[i];
+                const d = hueHist[(i + 1) % hueHist.length];
+                const e = hueHist[(i + 2) % hueHist.length];
+                smooth[i] = (a + b + c + d + e) / 5;
+            }
+
+            // 正規化
+            const maxVal = Math.max(...smooth) || 1;
+            const norm = smooth.map(v => v / maxVal);
+
+            // ----- ライン描画 -----
+            ctx.beginPath();
+            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = "rgba(20,20,20,0.9)";
+
+            const heightScale = h * 0.65;
+
+            for (let i = 0; i < norm.length; i++) {
+                const x = i / (norm.length - 1) * w;
+                const y = h - norm[i] * heightScale;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+
+            ctx.stroke();
+        }
+
+        // ======== 超なめらかガウシアン平滑（3パス） ========
+        function smoothArrayGaussian(arr, passes = 4) {
+            let result = [...arr];
+            const n = arr.length;
+
+            for (let p = 0; p < passes; p++) {
+                const tmp = [...result];
+                for (let i = 1; i < n - 1; i++) {
+                    tmp[i] = (result[i - 1] + result[i] * 2 + result[i + 1]) / 4;
+                }
+                result = tmp;
+            }
+            return result;
+        }
+
+        // ========== Tone Curve（単写真 from Image） ==========
+        function drawToneCurveFromImage(img) {
+            canvas.width = 300;
+            canvas.height = (img.height / img.width) * 300;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+            const bins = 144; // こちらも 144 bins
+            const brightnessHist = new Array(bins).fill(0);
+
+            for (let i = 0; i < imgData.length; i += 4) {
+                const r = imgData[i];
+                const g = imgData[i + 1];
+                const b = imgData[i + 2];
+
+                const { v } = rgbToHVS(r, g, b);
+                const brightness = v;
+                const index = Math.floor(brightness / 255 * (bins - 1));
+
+                brightnessHist[index]++;
+            }
+
+            drawToneCurveFromHist(brightnessHist);
+        }
+
+        // ========== Tone Curve（ヒストグラムから一本線で描画・超なめらか版） ==========
+        function drawToneCurveFromHist(brightHist) {
+            const w = toneCurveCanvas.width = toneCurveCanvas.clientWidth || 10;
+            const h = toneCurveCanvas.height = 180;
+
+            const bins = brightHist.length;
+            const maxV = Math.max(...brightHist) || 1;
+            const norm = brightHist.map(v => v / maxV);
+
+            const smooth = smoothArrayGaussian(norm, 5);
+
+            toneCurveCtx.clearRect(0, 0, w, h);
+
+            const grad = toneCurveCtx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, "rgba(0,0,0,0.15)");
+            grad.addColorStop(1, "rgba(255,255,255,0.15)");
+            toneCurveCtx.fillStyle = grad;
+            toneCurveCtx.fillRect(0, 0, w, h);
+
+            toneCurveCtx.beginPath();
+            toneCurveCtx.lineWidth = 1.6;
+            toneCurveCtx.strokeStyle = "rgba(20,20,20,0.9)";
+
+            const heightScale = h * 0.75;
+
+            smooth.forEach((v, i) => {
+                const x = (i / (bins - 1)) * w;
+                const y = h - v * heightScale;
+
+                if (i === 0) toneCurveCtx.moveTo(x, y);
+                else toneCurveCtx.lineTo(x, y);
+            });
+
+            toneCurveCtx.stroke();
+        }
+
+
+        // ========== 色分布バー（単写真用） ==========
+        function drawColorBarsSingle(img) {
+            const w = colorBarCanvas.width = colorBarCanvas.clientWidth || 10;
+            const h = colorBarCanvas.height = 180;
+
+            canvas.width = 260;
+            canvas.height = (img.height / img.width) * 260;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const bins = 24;
+            const hist = new Array(bins).fill(0);
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const { h: hh } = rgbToHVS(r, g, b);
+                const idx = Math.floor((hh / 360) * bins);
+                hist[Math.min(bins - 1, Math.max(0, idx))]++;
+            }
+
+            drawColorBarsFromHist(hist);
+        }
+
+        // ========== 色分布バー（ヒストグラムから描画） ==========
+        function drawColorBarsFromHist(hist) {
+            const w = colorBarCanvas.width = colorBarCanvas.clientWidth || 10;
+            const h = colorBarCanvas.height = 180;
+
+            colorBarCtx.clearRect(0, 0, w, h);
+
+            const bins = hist.length;
+            const maxCount = Math.max(...hist) || 1;
+
+            const barWidth = w / bins;
+
+            for (let i = 0; i < bins; i++) {
+                const ratio = hist[i] / maxCount;
+                const barH = ratio * (h - 16);
+
+                const x = i * barWidth;
+                const y = h - barH;
+
+                // 🔥 棒の中央の「色相24区間」の色
+                const hueCenter = (i + 0.5) / bins * 360;
+
+                // 🔥 くっきりしたバー（“帯”にならない）
+                colorBarCtx.fillStyle = `hsl(${hueCenter}, 65%, 55%)`;
+
+                // ★ 棒の形（端は1pxマージン）
+                colorBarCtx.fillRect(
+                    x + 1,     // ← オーバーラップ防止
+                    y,
+                    barWidth - 2,  // ← 隣と重ならない
+                    barH
+                );
+            }
+        }
+
+
+
+        // ========== RGB → Hue / Value / Saturation ==========
+        function rgbToHVS(r, g, b) {
+            const rf = r / 255, gf = g / 255, bf = b / 255;
+            const max = Math.max(rf, gf, bf);
+            const min = Math.min(rf, gf, bf);
+            const v = max * 255;
+
+            let h;
+            if (max === min) h = 0;
+            else if (max === rf) h = (60 * ((gf - bf) / (max - min)) + 360) % 360;
+            else if (max === gf) h = 60 * ((bf - rf) / (max - min)) + 120;
+            else h = 60 * ((rf - gf) / (max - min)) + 240;
+
+            const s = max === 0 ? 0 : (max - min) / max;
+            return { h, v, s };
+        }
+
+        // ========== K-means（パレット用） ==========
+        function kMeans(data, k) {
+            const centroids = data.slice(0, k);
+
+            for (let iter = 0; iter < 12; iter++) {
+                const clusters = Array.from({ length: k }, () => []);
+
+                data.forEach(p => {
+                    let best = 0, bestDist = Infinity;
+                    centroids.forEach((c, i) => {
+                        const d = distance(p, c);
+                        if (d < bestDist) { bestDist = d; best = i; }
+                    });
+                    clusters[best].push(p);
+                });
+
+                clusters.forEach((cluster, i) => {
+                    if (cluster.length === 0) return;
+                    const mean = [0, 0, 0];
+                    cluster.forEach(p => {
+                        mean[0] += p[0];
+                        mean[1] += p[1];
+                        mean[2] += p[2];
+                    });
+                    centroids[i] = mean.map(v => Math.round(v / cluster.length));
+                });
+            }
+            return centroids;
+        }
+
+        function distance(a, b) {
+            return Math.sqrt(
+                (a[0] - b[0]) ** 2 +
+                (a[1] - b[1]) ** 2 +
+                (a[2] - b[2]) ** 2
+            );
+        }
+
+        function rgbHex([r, g, b]) {
+            const toHex = n => n.toString(16).padStart(2, "0");
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        // ========== 抽出色マーカー（単写真） ==========
+        function renderMarkers(colors) {
+            markerLayer.innerHTML = "";
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const imgData = ctx.getImageData(0, 0, width, height).data;
+
+            colors.forEach(c => {
+                let bestDist = Infinity;
+                let bestX = 0, bestY = 0;
+
+                for (let y = 0; y < height; y += 2) {
+                    for (let x = 0; x < width; x += 2) {
+                        const idx = (y * width + x) * 4;
+                        const r = imgData[idx];
+                        const g = imgData[idx + 1];
+                        const b = imgData[idx + 2];
+                        const d = distance([r, g, b], c);
+
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestX = x;
+                            bestY = y;
+                        }
+                    }
+                }
+
+                const marker = document.createElement("div");
+                marker.className = "color-marker";
+                marker.style.background = rgbHex(c);
+
+                const scaleX = previewImg.clientWidth / width;
+                const scaleY = previewImg.clientHeight / height;
+
+                marker.style.left = `${bestX * scaleX}px`;
+                marker.style.top = `${bestY * scaleY}px`;
+
+                markerLayer.appendChild(marker);
+            });
+        }
+
+        // ========== パレット描画 ==========
+        function renderPalette(colors) {
+            let html = `<div class="palette-wrap"><div class="color-row">`;
+
+            colors.forEach(c => {
+                const hex = rgbHex(c);
+                html += `
+                    <div class="color-box" style="background:${hex}" onclick="copyCode('${hex}')">
+                        <div class="color-code">${hex}</div>
+                    </div>`;
+            });
+
+            html += `</div></div>`;
+            paletteArea.innerHTML = html;
+        }
+
+        function copyCode(hex) {
+            navigator.clipboard.writeText(hex);
+            alert(`コピーしました：${hex}`);
+        }
+
+        // ========== 統計→コメント用 Stats 構築（複数モード） ==========
+        function buildStatsFromHist(info) {
+            const {
+                totalPixels,
+                coolCount,
+                warmCount,
+                shadowsCount,
+                midsCount,
+                highlightsCount,
+                sumSat,
+                sumBright,
+                sumBrightSq
+            } = info;
+
+            const stats = {};
+
+            stats.coolRatio = coolCount / totalPixels;
+            stats.warmRatio = warmCount / totalPixels;
+
+            stats.shadowsRatio = shadowsCount / totalPixels;
+            stats.midsRatio = midsCount / totalPixels;
+            stats.highlightsRatio = highlightsCount / totalPixels;
+
+            stats.avgSaturation = sumSat / totalPixels;           // 0〜1
+            const meanB = sumBright / totalPixels;
+            const meanBSq = sumBrightSq / totalPixels;
+            const variance = Math.max(0, meanBSq - meanB * meanB);
+            stats.contrastScore = Math.min(1, Math.sqrt(variance) / 128); // ざっくり
+
+            return stats;
+        }
+
+        // ========== コメントプール（客観分析用） ==========
+        const commentPools = {
+            hueCool: [
+                "色相分布では、青〜シアン系が優勢で、全体としてクールトーン寄りの傾向が見られます。",
+                "青系の比率が高く、色相は冷たい側に寄った構成になっています。",
+                "寒色成分が多く、画面全体がやや低い色温度で統一されています。"
+            ],
+            hueWarm: [
+                "色相分布では、黄〜橙〜赤系の比率が高く、ウォームトーン寄りの傾向が見られます。",
+                "暖色成分が優勢で、全体として高めの色温度を感じる構成になっています。",
+                "橙〜赤系の寄与が大きく、温かみのある色相バランスが特徴的です。"
+            ],
+            hueNeutral: [
+                "寒色と暖色の比率が大きくは偏らず、ニュートラルに近い色相バランスです。",
+                "青系・暖色系ともに一定量含まれ、色相の偏りは比較的少ない構成です。",
+                "特定の色相に大きく寄らず、バランスの取れた色相分布になっています."
+            ],
+            toneLowKey: [
+                "明度分布ではシャドウ域の比率が高く、ローキー寄りのトーン設計となっています。",
+                "暗部の占有率が大きく、ハイライトは控えめな構成です。",
+                "シャドウ成分が優勢で、全体として低めの明度レンジでまとめられています。"
+            ],
+            toneMid: [
+                "中間調の比率が最も高く、極端な暗部やハイライトに依存しない安定したトーン構成です。",
+                "明度の中心はミッドトーン付近にあり、バランス型のトーン分布になっています。",
+                "シャドウ・ハイライトよりも中間調が優勢で、穏やかな明度バランスです。"
+            ],
+            toneHighKey: [
+                "ハイライト域の比率が高く、全体としてハイキー寄りのトーン設計になっています。",
+                "明部の占有率が大きく、暗部は少なめの構成です。",
+                "高明度成分が優勢で、明るいレンジに寄ったトーン分布が特徴的です。"
+            ],
+            satLow: [
+                "彩度は全体として控えめで、低〜中彩度を中心とした落ち着いた色設計になっています.",
+                "高彩度成分は少なく、抑制された色使いが一貫しています。",
+                "飽和度は低めで、派手さよりもトーンと明度の差で画面が構成されています。"
+            ],
+            satMid: [
+                "彩度は中程度で、必要な範囲だけが強調されるバランス型の色設計です。",
+                "極端に低彩度でも高彩度でもなく、中庸な飽和度が保たれています。",
+                "全体として中彩度域が中心で、色の主張と落ち着きが共存する構成です。"
+            ],
+            satHigh: [
+                "高彩度成分が多く、色のコントラストが強めに効いた構成になっています。",
+                "飽和度は高く、視線を引きつける色のアクセントが多く含まれています。",
+                "ビビッドな色が画面の中で一定の割合を占める、鮮やかさのある傾向です。"
+            ],
+            contrastLow: [
+                "明度分布のばらつきは小さく、コントラストは弱めの傾向です。",
+                "暗部からハイライトまでの差は比較的緩やかで、フラット寄りのコントラストになっています。",
+                "強い明暗差は少なく、滑らかな階調変化が中心のトーン設計です。"
+            ],
+            contrastMid: [
+                "コントラストは中程度で、暗部とハイライトの差が過度に強調されないバランスの良い構成です。",
+                "明暗差は適度で、情報量と見やすさのバランスが取れたレンジ感になっています。",
+                "コントラストは標準域で、階調再現と視認性の両立が図られています。"
+            ],
+            contrastHigh: [
+                "明度のばらつきが大きく、コントラストは強めの傾向です。",
+                "シャドウとハイライトの差が大きく、メリハリのあるトーン構成になっています。",
+                "高コントラスト寄りで、明暗の境界がはっきりとした階調設計です。"
+            ],
+            summary: [
+                "総合的には、色相・明度・彩度ともに一定の一貫性があり、作風としての方向性がはっきりと表れています。",
+                "全体の統計から、色やトーンの選択に明確な傾向が見られ、作家としての好みがデータとしても確認できます。",
+                "これらの傾向は、作品群を通して共通する“色と光の設計”として一貫して現れています。"
+            ]
+        };
+
+        // ========== Stats → タグ分類 ==========
+        function classifyStats(stats) {
+            const tags = [];
+
+            // Hue
+            if (stats.coolRatio > stats.warmRatio + 0.08) {
+                tags.push("hueCool");
+            } else if (stats.warmRatio > stats.coolRatio + 0.08) {
+                tags.push("hueWarm");
+            } else {
+                tags.push("hueNeutral");
+            }
+
+            // Tone
+            if (stats.shadowsRatio > 0.45 && stats.highlightsRatio < 0.2) {
+                tags.push("toneLowKey");
+            } else if (stats.highlightsRatio > 0.35) {
+                tags.push("toneHighKey");
+            } else {
+                tags.push("toneMid");
+            }
+
+            // Saturation
+            if (stats.avgSaturation < 0.28) {
+                tags.push("satLow");
+            } else if (stats.avgSaturation > 0.55) {
+                tags.push("satHigh");
+            } else {
+                tags.push("satMid");
+            }
+
+            // Contrast
+            if (stats.contrastScore < 0.35) {
+                tags.push("contrastLow");
+            } else if (stats.contrastScore > 0.60) {
+                tags.push("contrastHigh");
+            } else {
+                tags.push("contrastMid");
+            }
+
+            return tags;
+        }
+
+        function pickRandom(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        // ========== 分析コメント生成（複数モード専用） ==========
+        function generateAnalysisComment(stats) {
+            const tags = classifyStats(stats);
+            const sentences = [];
+
+            tags.forEach(tag => {
+                const pool = commentPools[tag];
+                if (pool && pool.length) {
+                    sentences.push(pickRandom(pool));
+                }
+            });
+
+            // まとめ文
+            sentences.push(pickRandom(commentPools.summary));
+
+            // 3行前後に抑える（2〜4文くらい）
+            const maxSentences = 3;
+            const trimmed = sentences.slice(0, maxSentences);
+
+            return trimmed.join("\n");
+        }
+    </script>
+</body>
+
+</html>
